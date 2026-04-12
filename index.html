@@ -44,10 +44,9 @@
 
   #board {
     display: grid;
-    grid-template-columns: repeat(3, 1fr);
     gap: 6px;
-    width: min(85vw, 360px);
-    height: min(85vw, 360px);
+    width: min(85vw, 420px);
+    height: min(85vw, 420px);
   }
 
   .cell {
@@ -57,7 +56,6 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: min(15vw, 64px);
     font-weight: 700;
     cursor: pointer;
     transition: background 0.15s;
@@ -104,9 +102,18 @@
     color: #fff;
   }
 
-  #modeBtn {
+  #modeBtn, #sizeSelect {
     background: #0f3460;
     color: #eee;
+  }
+
+  #sizeSelect {
+    font-size: 1rem;
+    padding: 0.6rem 1rem;
+    border: none;
+    border-radius: 8px;
+    font-weight: 600;
+    cursor: pointer;
   }
 
   #score {
@@ -133,6 +140,12 @@
 <div id="controls">
   <button id="resetBtn">New Game</button>
   <button id="modeBtn">vs Computer</button>
+  <select id="sizeSelect">
+    <option value="3">3 × 3</option>
+    <option value="4">4 × 4</option>
+    <option value="5">5 × 5</option>
+    <option value="7">7 × 7</option>
+  </select>
 </div>
 
 <script>
@@ -145,29 +158,57 @@ const board = document.getElementById('board');
 const status = document.getElementById('status');
 const resetBtn = document.getElementById('resetBtn');
 const modeBtn = document.getElementById('modeBtn');
+const sizeSelect = document.getElementById('sizeSelect');
 
 let cells, state, turn, gameOver, vsAI, scores;
+let size = 3, winLen = 3, lines = [];
 
 function init() {
-  scores = scores || { X: 0, O: 0, D: 0 };
+  scores = { X: 0, O: 0, D: 0 };
   vsAI = vsAI || false;
+  applySize(parseInt(sizeSelect.value, 10));
+}
+
+function applySize(n) {
+  size = n;
+  winLen = n <= 4 ? n : 5;
+  lines = buildLines(size, winLen);
+  board.style.gridTemplateColumns = `repeat(${size}, 1fr)`;
+  const fontPx = Math.min(85 / size, 14);
+  document.querySelectorAll('.cell').forEach(c => {});
   reset();
 }
 
+function buildLines(n, k) {
+  const out = [];
+  for (let r = 0; r < n; r++) {
+    for (let c = 0; c < n; c++) {
+      if (c + k <= n) out.push(Array.from({length: k}, (_, i) => r * n + c + i));
+      if (r + k <= n) out.push(Array.from({length: k}, (_, i) => (r + i) * n + c));
+      if (r + k <= n && c + k <= n) out.push(Array.from({length: k}, (_, i) => (r + i) * n + c + i));
+      if (r + k <= n && c - k + 1 >= 0) out.push(Array.from({length: k}, (_, i) => (r + i) * n + c - i));
+    }
+  }
+  return out;
+}
+
 function reset() {
-  state = Array(9).fill('');
+  state = Array(size * size).fill('');
   turn = 'X';
   gameOver = false;
-  status.textContent = turn + "'s turn";
+  status.textContent = turn + "'s turn  (" + winLen + " in a row)";
   render();
 }
 
 function render() {
   board.innerHTML = '';
-  for (let i = 0; i < 9; i++) {
+  const fontVw = Math.floor(45 / size);
+  const fontPx = Math.floor(320 / size);
+  for (let i = 0; i < size * size; i++) {
     const cell = document.createElement('div');
     cell.className = 'cell' + (state[i] ? ' ' + state[i].toLowerCase() : '');
     cell.textContent = state[i];
+    cell.style.fontSize = `min(${fontVw}vw, ${fontPx}px)`;
     cell.addEventListener('click', () => play(i));
     board.appendChild(cell);
   }
@@ -198,6 +239,7 @@ function play(i) {
 function aiMove() {
   if (gameOver) return;
   const move = bestMove();
+  if (move == null) return;
   state[move] = 'O';
   cells[move].textContent = 'O';
   cells[move].classList.add('o');
@@ -211,32 +253,38 @@ function aiMove() {
 }
 
 function bestMove() {
-  // Try to win
-  for (let i = 0; i < 9; i++) {
+  const N = size * size;
+  for (let i = 0; i < N; i++) {
     if (!state[i]) { state[i] = 'O'; if (checkWin('O')) { state[i] = ''; return i; } state[i] = ''; }
   }
-  // Block opponent
-  for (let i = 0; i < 9; i++) {
+  for (let i = 0; i < N; i++) {
     if (!state[i]) { state[i] = 'X'; if (checkWin('X')) { state[i] = ''; return i; } state[i] = ''; }
   }
-  // Center
-  if (!state[4]) return 4;
-  // Corners
-  const corners = [0, 2, 6, 8].filter(i => !state[i]);
-  if (corners.length) return corners[Math.floor(Math.random() * corners.length)];
-  // Any
-  const empty = state.map((v, i) => v ? -1 : i).filter(i => i >= 0);
-  return empty[Math.floor(Math.random() * empty.length)];
+  // Prefer cells adjacent to existing marks
+  const empty = [];
+  for (let i = 0; i < N; i++) if (!state[i]) empty.push(i);
+  if (!empty.length) return null;
+  const center = Math.floor(size / 2) * size + Math.floor(size / 2);
+  if (!state[center]) return center;
+  const adjacent = empty.filter(i => hasNeighbor(i));
+  const pool = adjacent.length ? adjacent : empty;
+  return pool[Math.floor(Math.random() * pool.length)];
 }
 
-const LINES = [
-  [0,1,2],[3,4,5],[6,7,8],
-  [0,3,6],[1,4,7],[2,5,8],
-  [0,4,8],[2,4,6]
-];
+function hasNeighbor(i) {
+  const r = Math.floor(i / size), c = i % size;
+  for (let dr = -1; dr <= 1; dr++) {
+    for (let dc = -1; dc <= 1; dc++) {
+      if (!dr && !dc) continue;
+      const nr = r + dr, nc = c + dc;
+      if (nr >= 0 && nr < size && nc >= 0 && nc < size && state[nr * size + nc]) return true;
+    }
+  }
+  return false;
+}
 
 function checkWin(p) {
-  for (const line of LINES) {
+  for (const line of lines) {
     if (line.every(i => state[i] === p)) return line;
   }
   return null;
@@ -266,6 +314,10 @@ modeBtn.addEventListener('click', () => {
   modeBtn.textContent = vsAI ? 'vs Human' : 'vs Computer';
   scores = { X: 0, O: 0, D: 0 };
   reset();
+});
+sizeSelect.addEventListener('change', () => {
+  scores = { X: 0, O: 0, D: 0 };
+  applySize(parseInt(sizeSelect.value, 10));
 });
 
 init();
