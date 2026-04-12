@@ -4,6 +4,15 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
 <title>Tic Tac Toe</title>
+
+<!-- PWA meta tags -->
+<meta name="theme-color" content="#e94560">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="TicTacToe">
+<link rel="apple-touch-icon" href="icon-192.png">
+<link rel="manifest" href="manifest.json">
+
 <style>
   * { margin: 0; padding: 0; box-sizing: border-box; }
 
@@ -127,6 +136,11 @@
 </div>
 
 <script>
+// Register service worker
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('./sw.js');
+}
+
 const board = document.getElementById('board');
 const status = document.getElementById('status');
 const resetBtn = document.getElementById('resetBtn');
