@@ -1,11 +1,11 @@
 {
-  "name": "Tic Tac Toe",
-  "short_name": "TicTacToe",
-  "description": "A simple Tic Tac Toe game with AI opponent",
+  "name": "Herní koutek",
+  "short_name": "Hry",
+  "description": "Tic Tac Toe and a visual evening routine game",
   "start_url": "./index.html",
   "display": "standalone",
-  "background_color": "#1a1a2e",
-  "theme_color": "#e94560",
+  "background_color": "#10162f",
+  "theme_color": "#10162f",
   "orientation": "any",
   "icons": [
     {
